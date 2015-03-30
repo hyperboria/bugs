@@ -12,7 +12,7 @@ Configure the init system to autostart cjdns
     rc-update add cjdns default
 
 Copy the service_restart script `contrib/gentoo/service_restart.sh` to any convenient directory on 
-your system and modify the eMail address. I you do not wish to be notified, comment out the whole line.
+your system and modify the eMail address. If you do not wish to be notified, comment out the whole line.
 Now add an crontab entry like this
 
     # Restart crashed Services
