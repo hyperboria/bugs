@@ -115,6 +115,7 @@ test/test-pass-always.c
 test/test-ping-pong.c
 test/test-pipe-bind-error.c
 test/test-pipe-connect-error.c
+test/test-pipe-sendmsg.c
 test/test-pipe-server-close.c
 test/test-platform-output.c
 test/test-poll-close.c
@@ -144,6 +145,7 @@ test/test-tcp-open.c
 test/test-tcp-read-stop.c
 test/test-tcp-shutdown-after-write.c
 test/test-tcp-unexpected-read.c
+test/test-tcp-oob.c
 test/test-tcp-write-error.c
 test/test-tcp-write-to-half-open-connection.c
 test/test-tcp-writealot.c

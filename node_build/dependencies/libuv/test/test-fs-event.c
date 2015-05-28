@@ -50,7 +50,7 @@ static char fs_event_filename[1024];
 #endif  /* defined(PATH_MAX) */
 static int timer_cb_touch_called;
 
-static void fs_event_unlink_files(uv_timer_t* handle, int status);
+static void fs_event_unlink_files(uv_timer_t* handle);
 
 static void create_dir(uv_loop_t* loop, const char* name) {
   int r;
@@ -79,13 +79,15 @@ static void touch_file(uv_loop_t* loop, const char* name) {
   int r;
   uv_file file;
   uv_fs_t req;
+  uv_buf_t buf;
 
   r = uv_fs_open(loop, &req, name, O_RDWR, 0, NULL);
   ASSERT(r >= 0);
   file = r;
   uv_fs_req_cleanup(&req);
 
-  r = uv_fs_write(loop, &req, file, "foo", 4, -1, NULL);
+  buf = uv_buf_init("foo", 4);
+  r = uv_fs_write(loop, &req, file, &buf, 1, -1, NULL);
   ASSERT(r >= 0);
   uv_fs_req_cleanup(&req);
 
@@ -145,7 +147,7 @@ static const char* fs_event_get_filename(int i) {
   return fs_event_filename;
 }
 
-static void fs_event_create_files(uv_timer_t* handle, int status) {
+static void fs_event_create_files(uv_timer_t* handle) {
   int i;
 
   /* Already created all files */
@@ -162,7 +164,7 @@ static void fs_event_create_files(uv_timer_t* handle, int status) {
   ASSERT(0 == uv_timer_start(&timer, fs_event_unlink_files, 50, 0));
 }
 
-void fs_event_unlink_files(uv_timer_t* handle, int status) {
+void fs_event_unlink_files(uv_timer_t* handle) {
   int r;
   int i;
 
@@ -191,11 +193,10 @@ static void fs_event_cb_file(uv_fs_event_t* handle, const char* filename,
   uv_close((uv_handle_t*)handle, close_cb);
 }
 
-static void timer_cb_close_handle(uv_timer_t* timer, int status) {
+static void timer_cb_close_handle(uv_timer_t* timer) {
   uv_handle_t* handle;
 
   ASSERT(timer != NULL);
-  ASSERT(status == 0);
   handle = timer->data;
 
   uv_close((uv_handle_t*)timer, NULL);
@@ -221,7 +222,7 @@ static void fs_event_cb_file_current_dir(uv_fs_event_t* handle,
   }
 }
 
-static void timer_cb_file(uv_timer_t* handle, int status) {
+static void timer_cb_file(uv_timer_t* handle) {
   ++timer_cb_called;
 
   if (timer_cb_called == 1) {
@@ -232,14 +233,13 @@ static void timer_cb_file(uv_timer_t* handle, int status) {
   }
 }
 
-static void timer_cb_touch(uv_timer_t* timer, int status) {
-  ASSERT(status == 0);
+static void timer_cb_touch(uv_timer_t* timer) {
   uv_close((uv_handle_t*)timer, NULL);
   touch_file(timer->loop, "watch_file");
   timer_cb_touch_called++;
 }
 
-static void timer_cb_watch_twice(uv_timer_t* handle, int status) {
+static void timer_cb_watch_twice(uv_timer_t* handle) {
   uv_fs_event_t* handles = handle->data;
   uv_close((uv_handle_t*) (handles + 0), NULL);
   uv_close((uv_handle_t*) (handles + 1), NULL);
@@ -251,7 +251,7 @@ TEST_IMPL(fs_event_watch_dir) {
   int r;
 
   /* Setup */
-  fs_event_unlink_files(NULL, 0);
+  fs_event_unlink_files(NULL);
   remove("watch_dir/file2");
   remove("watch_dir/file1");
   remove("watch_dir/");
@@ -273,7 +273,7 @@ TEST_IMPL(fs_event_watch_dir) {
   ASSERT(close_cb_called == 2);
 
   /* Cleanup */
-  fs_event_unlink_files(NULL, 0);
+  fs_event_unlink_files(NULL);
   remove("watch_dir/file2");
   remove("watch_dir/file1");
   remove("watch_dir/");
@@ -456,10 +456,8 @@ static void fs_event_fail(uv_fs_event_t* handle, const char* filename,
 }
 
 
-static void timer_cb(uv_timer_t* handle, int status) {
+static void timer_cb(uv_timer_t* handle) {
   int r;
-
-  ASSERT(status == 0);
 
   r = uv_fs_event_init(handle->loop, &fs_event);
   ASSERT(r == 0);
@@ -626,6 +624,39 @@ TEST_IMPL(fs_event_start_and_close) {
   return 0;
 }
 
+TEST_IMPL(fs_event_getpath) {
+  uv_loop_t* loop = uv_default_loop();
+  int r;
+  char buf[1024];
+  size_t len;
+
+  create_dir(loop, "watch_dir");
+
+  r = uv_fs_event_init(loop, &fs_event);
+  ASSERT(r == 0);
+  len = sizeof buf;
+  r = uv_fs_event_getpath(&fs_event, buf, &len);
+  ASSERT(r == UV_EINVAL);
+  r = uv_fs_event_start(&fs_event, fail_cb, "watch_dir", 0);
+  ASSERT(r == 0);
+  len = sizeof buf;
+  r = uv_fs_event_getpath(&fs_event, buf, &len);
+  ASSERT(r == 0);
+  ASSERT(buf[len - 1] != 0);
+  ASSERT(memcmp(buf, "watch_dir", len) == 0);
+  r = uv_fs_event_stop(&fs_event);
+  ASSERT(r == 0);
+  uv_close((uv_handle_t*) &fs_event, close_cb);
+
+  uv_run(loop, UV_RUN_DEFAULT);
+
+  ASSERT(close_cb_called == 1);
+
+  remove("watch_dir/");
+  MAKE_VALGRIND_HAPPY();
+  return 0;
+}
+
 #if defined(__APPLE__)
 
 static int fs_event_error_reported;
@@ -638,7 +669,7 @@ static void fs_event_error_report_cb(uv_fs_event_t* handle,
     fs_event_error_reported = status;
 }
 
-static void timer_cb_nop(uv_timer_t* handle, int status) {
+static void timer_cb_nop(uv_timer_t* handle) {
   ++timer_cb_called;
   uv_close((uv_handle_t*) handle, close_cb);
 }
@@ -653,7 +684,7 @@ static void fs_event_error_report_close_cb(uv_handle_t* handle) {
 
 TEST_IMPL(fs_event_error_reporting) {
   unsigned int i;
-  uv_loop_t* loops[1024];
+  uv_loop_t loops[1024];
   uv_fs_event_t events[ARRAY_SIZE(loops)];
   uv_loop_t* loop;
   uv_fs_event_t* event;
@@ -668,11 +699,10 @@ TEST_IMPL(fs_event_error_reporting) {
    * fail.
    */
   for (i = 0; i < ARRAY_SIZE(loops); i++) {
-    loop = uv_loop_new();
+    loop = &loops[i];
+    ASSERT(0 == uv_loop_init(loop));
     event = &events[i];
-    ASSERT(loop != NULL);
 
-    loops[i] = loop;
     timer_cb_called = 0;
     close_cb_called = 0;
     ASSERT(0 == uv_fs_event_init(loop, event));
@@ -697,7 +727,7 @@ TEST_IMPL(fs_event_error_reporting) {
 
   /* Stop and close all events, and destroy loops */
   do {
-    loop = loops[i];
+    loop = &loops[i];
     event = &events[i];
 
     ASSERT(0 == uv_fs_event_stop(event));
@@ -708,9 +738,7 @@ TEST_IMPL(fs_event_error_reporting) {
     uv_run(loop, UV_RUN_DEFAULT);
     ASSERT(close_cb_called == 1);
 
-    uv_loop_delete(loop);
-
-    loops[i] = NULL;
+    uv_loop_close(loop);
   } while (i-- != 0);
 
   remove("watch_dir/");

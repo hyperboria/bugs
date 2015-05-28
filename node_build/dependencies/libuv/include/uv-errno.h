@@ -39,7 +39,6 @@
 #define UV__EAI_OVERFLOW    (-3009)
 #define UV__EAI_SERVICE     (-3010)
 #define UV__EAI_SOCKTYPE    (-3011)
-#define UV__EAI_SYSTEM      (-3012) /* TODO(bnoordhuis) Return system error. */
 #define UV__EAI_BADHINTS    (-3013)
 #define UV__EAI_PROTOCOL    (-3014)
 
@@ -56,12 +55,6 @@
 # define UV__EACCES (-EACCES)
 #else
 # define UV__EACCES (-4092)
-#endif
-
-#if defined(EADDRINFO) && !defined(_WIN32)
-# define UV__EADDRINFO EADDRINFO
-#else
-# define UV__EADDRINFO (-4091)
 #endif
 
 #if defined(EADDRINUSE) && !defined(_WIN32)
@@ -364,10 +357,62 @@
 # define UV__ETIMEDOUT (-4039)
 #endif
 
+#if defined(ETXTBSY) && !defined(_WIN32)
+# define UV__ETXTBSY (-ETXTBSY)
+#else
+# define UV__ETXTBSY (-4038)
+#endif
+
 #if defined(EXDEV) && !defined(_WIN32)
 # define UV__EXDEV (-EXDEV)
 #else
 # define UV__EXDEV (-4037)
+#endif
+
+#if defined(EFBIG) && !defined(_WIN32)
+# define UV__EFBIG (-EFBIG)
+#else
+# define UV__EFBIG (-4036)
+#endif
+
+#if defined(ENOPROTOOPT) && !defined(_WIN32)
+# define UV__ENOPROTOOPT (-ENOPROTOOPT)
+#else
+# define UV__ENOPROTOOPT (-4035)
+#endif
+
+#if defined(ERANGE) && !defined(_WIN32)
+# define UV__ERANGE (-ERANGE)
+#else
+# define UV__ERANGE (-4034)
+#endif
+
+#if defined(ENXIO) && !defined(_WIN32)
+# define UV__ENXIO (-ENXIO)
+#else
+# define UV__ENXIO (-4033)
+#endif
+
+#if defined(EMLINK) && !defined(_WIN32)
+# define UV__EMLINK (-EMLINK)
+#else
+# define UV__EMLINK (-4032)
+#endif
+
+/* EHOSTDOWN is not visible on BSD-like systems when _POSIX_C_SOURCE is
+ * defined. Fortunately, its value is always 64 so it's possible albeit
+ * icky to hard-code it.
+ */
+#if defined(EHOSTDOWN) && !defined(_WIN32)
+# define UV__EHOSTDOWN (-EHOSTDOWN)
+#elif defined(__APPLE__) || \
+      defined(__DragonFly__) || \
+      defined(__FreeBSD__) || \
+      defined(__NetBSD__) || \
+      defined(__OpenBSD__)
+# define UV__EHOSTDOWN (-64)
+#else
+# define UV__EHOSTDOWN (-4031)
 #endif
 
 #endif /* UV_ERRNO_H_ */

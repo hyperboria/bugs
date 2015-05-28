@@ -62,7 +62,7 @@
 #endif
 
 
-int uv__platform_loop_init(uv_loop_t* loop, int default_loop) {
+int uv__platform_loop_init(uv_loop_t* loop) {
   int err;
   int fd;
 
@@ -122,6 +122,8 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
   struct timespec spec;
   QUEUE* q;
   uv__io_t* w;
+  sigset_t* pset;
+  sigset_t set;
   uint64_t base;
   uint64_t diff;
   unsigned int nfds;
@@ -129,6 +131,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
   int saved_errno;
   int nevents;
   int count;
+  int err;
   int fd;
 
   if (loop->nfds == 0) {
@@ -150,6 +153,13 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
     w->events = w->pevents;
   }
 
+  pset = NULL;
+  if (loop->flags & UV_LOOP_BLOCK_SIGPROF) {
+    pset = &set;
+    sigemptyset(pset);
+    sigaddset(pset, SIGPROF);
+  }
+
   assert(timeout >= -1);
   base = loop->time;
   count = 48; /* Benchmarks suggest this gives the best throughput. */
@@ -165,11 +175,20 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
 
     nfds = 1;
     saved_errno = 0;
-    if (port_getn(loop->backend_fd,
-                  events,
-                  ARRAY_SIZE(events),
-                  &nfds,
-                  timeout == -1 ? NULL : &spec)) {
+
+    if (pset != NULL)
+      pthread_sigmask(SIG_BLOCK, pset, NULL);
+
+    err = port_getn(loop->backend_fd,
+                    events,
+                    ARRAY_SIZE(events),
+                    &nfds,
+                    timeout == -1 ? NULL : &spec);
+
+    if (pset != NULL)
+      pthread_sigmask(SIG_UNBLOCK, pset, NULL);
+
+    if (err) {
       /* Work around another kernel bug: port_getn() may return events even
        * on error.
        */
@@ -281,11 +300,15 @@ int uv_exepath(char* buffer, size_t* size) {
   ssize_t res;
   char buf[128];
 
-  if (buffer == NULL || size == NULL)
+  if (buffer == NULL || size == NULL || *size == 0)
     return -EINVAL;
 
   snprintf(buf, sizeof(buf), "/proc/%lu/path/a.out", (unsigned long) getpid());
-  res = readlink(buf, buffer, *size - 1);
+
+  res = *size - 1;
+  if (res > 0)
+    res = readlink(buf, buffer, res);
+
   if (res == -1)
     return -errno;
 
@@ -372,11 +395,14 @@ static void uv__fs_event_read(uv_loop_t* loop,
     assert(events != 0);
     handle->fd = PORT_FIRED;
     handle->cb(handle, NULL, events, 0);
+
+    if (handle->fd != PORT_DELETED) {
+      r = uv__fs_event_rearm(handle);
+      if (r != 0)
+        handle->cb(handle, NULL, 0, r);
+    }
   }
   while (handle->fd != PORT_DELETED);
-
-  if (handle != NULL && handle->fd != PORT_DELETED)
-    uv__fs_event_rearm(handle);  /* FIXME(bnoordhuis) Check return code. */
 }
 
 
@@ -388,10 +414,11 @@ int uv_fs_event_init(uv_loop_t* loop, uv_fs_event_t* handle) {
 
 int uv_fs_event_start(uv_fs_event_t* handle,
                       uv_fs_event_cb cb,
-                      const char* filename,
+                      const char* path,
                       unsigned int flags) {
   int portfd;
   int first_run;
+  int err;
 
   if (uv__is_active(handle))
     return -EINVAL;
@@ -406,13 +433,15 @@ int uv_fs_event_start(uv_fs_event_t* handle,
   }
 
   uv__handle_start(handle);
-  handle->filename = strdup(filename);
+  handle->path = strdup(path);
   handle->fd = PORT_UNUSED;
   handle->cb = cb;
 
   memset(&handle->fo, 0, sizeof handle->fo);
-  handle->fo.fo_name = handle->filename;
-  uv__fs_event_rearm(handle);  /* FIXME(bnoordhuis) Check return code. */
+  handle->fo.fo_name = handle->path;
+  err = uv__fs_event_rearm(handle);
+  if (err != 0)
+    return err;
 
   if (first_run) {
     uv__io_init(&handle->loop->fs_event_watcher, uv__fs_event_read, portfd);
@@ -425,7 +454,7 @@ int uv_fs_event_start(uv_fs_event_t* handle,
 
 int uv_fs_event_stop(uv_fs_event_t* handle) {
   if (!uv__is_active(handle))
-    return -EINVAL;
+    return 0;
 
   if (handle->fd == PORT_FIRED || handle->fd == PORT_LOADED) {
     port_dissociate(handle->loop->fs_fd,
@@ -434,8 +463,8 @@ int uv_fs_event_stop(uv_fs_event_t* handle) {
   }
 
   handle->fd = PORT_DELETED;
-  free(handle->filename);
-  handle->filename = NULL;
+  free(handle->path);
+  handle->path = NULL;
   handle->fo.fo_name = NULL;
   uv__handle_stop(handle);
 

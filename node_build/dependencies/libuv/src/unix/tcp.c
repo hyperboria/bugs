@@ -63,6 +63,10 @@ int uv__tcp_bind(uv_tcp_t* tcp,
   int err;
   int on;
 
+  /* Cannot set IPv6-only mode on non-IPv6 socket. */
+  if ((flags & UV_TCP_IPV6ONLY) && addr->sa_family != AF_INET6)
+    return -EINVAL;
+
   err = maybe_new_socket(tcp,
                          addr->sa_family,
                          UV_STREAM_READABLE | UV_STREAM_WRITABLE);
@@ -89,8 +93,11 @@ int uv__tcp_bind(uv_tcp_t* tcp,
   errno = 0;
   if (bind(tcp->io_watcher.fd, addr, addrlen) && errno != EADDRINUSE)
     return -errno;
-
   tcp->delayed_error = -errno;
+
+  if (addr->sa_family == AF_INET6)
+    tcp->flags |= UV_HANDLE_IPV6;
+
   return 0;
 }
 
@@ -149,13 +156,19 @@ int uv__tcp_connect(uv_connect_t* req,
 
 
 int uv_tcp_open(uv_tcp_t* handle, uv_os_sock_t sock) {
+  int err;
+
+  err = uv__nonblock(sock, 1);
+  if (err)
+    return err;
+
   return uv__stream_open((uv_stream_t*)handle,
                          sock,
                          UV_STREAM_READABLE | UV_STREAM_WRITABLE);
 }
 
 
-int uv_tcp_getsockname(uv_tcp_t* handle,
+int uv_tcp_getsockname(const uv_tcp_t* handle,
                        struct sockaddr* name,
                        int* namelen) {
   socklen_t socklen;
@@ -177,7 +190,7 @@ int uv_tcp_getsockname(uv_tcp_t* handle,
 }
 
 
-int uv_tcp_getpeername(uv_tcp_t* handle,
+int uv_tcp_getpeername(const uv_tcp_t* handle,
                        struct sockaddr* name,
                        int* namelen) {
   socklen_t socklen;
@@ -232,7 +245,9 @@ int uv_tcp_listen(uv_tcp_t* tcp, int backlog, uv_connection_cb cb) {
 
 
 int uv__tcp_nodelay(int fd, int on) {
-  return setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &on, sizeof(on));
+  if (setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &on, sizeof(on)))
+    return -errno;
+  return 0;
 }
 
 

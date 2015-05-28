@@ -32,7 +32,6 @@
 
 
 TEST_IMPL(ip6_addr_link_local) {
-#ifdef UV_PLATFORM_HAS_IP6_LINK_LOCAL_ADDRESS
   char string_address[INET6_ADDRSTRLEN];
   uv_interface_address_t* addresses;
   uv_interface_address_t* address;
@@ -78,14 +77,16 @@ TEST_IMPL(ip6_addr_link_local) {
              device_name);
 #endif
 
-    LOGF("Testing link-local address %s "
-         "(iface_index: 0x%02x, device_name: %s)\n",
-         scoped_addr,
-         iface_index,
-         device_name);
+    fprintf(stderr, "Testing link-local address %s "
+            "(iface_index: 0x%02x, device_name: %s)\n",
+            scoped_addr,
+            iface_index,
+            device_name);
+    fflush(stderr);
 
     ASSERT(0 == uv_ip6_addr(scoped_addr, TEST_PORT, &addr));
-    LOGF("Got scope_id 0x%02x\n", addr.sin6_scope_id);
+    fprintf(stderr, "Got scope_id 0x%02x\n", addr.sin6_scope_id);
+    fflush(stderr);
     ASSERT(iface_index == addr.sin6_scope_id);
   }
 
@@ -93,7 +94,48 @@ TEST_IMPL(ip6_addr_link_local) {
 
   MAKE_VALGRIND_HAPPY();
   return 0;
-#else
-  RETURN_SKIP("Qualified link-local addresses are not supported.");
-#endif
 }
+
+
+#define GOOD_ADDR_LIST(X)                                                     \
+    X("::")                                                                   \
+    X("::1")                                                                  \
+    X("fe80::1")                                                              \
+    X("fe80::")                                                               \
+    X("fe80::2acf:daff:fedd:342a")                                            \
+    X("fe80:0:0:0:2acf:daff:fedd:342a")                                       \
+    X("fe80:0:0:0:2acf:daff:1.2.3.4")                                         \
+    X("ffff:ffff:ffff:ffff:ffff:ffff:255.255.255.255")                        \
+
+#define BAD_ADDR_LIST(X)                                                      \
+    X(":::1")                                                                 \
+    X("abcde::1")                                                             \
+    X("fe80:0:0:0:2acf:daff:fedd:342a:5678")                                  \
+    X("fe80:0:0:0:2acf:daff:abcd:1.2.3.4")                                    \
+    X("fe80:0:0:2acf:daff:1.2.3.4.5")                                         \
+    X("ffff:ffff:ffff:ffff:ffff:ffff:255.255.255.255.255")                    \
+
+#define TEST_GOOD(ADDR)                                                       \
+    ASSERT(0 == uv_inet_pton(AF_INET6, ADDR, &addr));                         \
+    ASSERT(0 == uv_inet_pton(AF_INET6, ADDR "%en1", &addr));                  \
+    ASSERT(0 == uv_inet_pton(AF_INET6, ADDR "%%%%", &addr));                  \
+    ASSERT(0 == uv_inet_pton(AF_INET6, ADDR "%en1:1.2.3.4", &addr));          \
+
+#define TEST_BAD(ADDR)                                                        \
+    ASSERT(0 != uv_inet_pton(AF_INET6, ADDR, &addr));                         \
+    ASSERT(0 != uv_inet_pton(AF_INET6, ADDR "%en1", &addr));                  \
+    ASSERT(0 != uv_inet_pton(AF_INET6, ADDR "%%%%", &addr));                  \
+    ASSERT(0 != uv_inet_pton(AF_INET6, ADDR "%en1:1.2.3.4", &addr));          \
+
+TEST_IMPL(ip6_pton) {
+  struct in6_addr addr;
+
+  GOOD_ADDR_LIST(TEST_GOOD)
+  BAD_ADDR_LIST(TEST_BAD)
+
+  MAKE_VALGRIND_HAPPY();
+  return 0;
+}
+
+#undef GOOD_ADDR_LIST
+#undef BAD_ADDR_LIST

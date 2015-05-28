@@ -96,31 +96,6 @@ int uv_read_start(uv_stream_t* handle, uv_alloc_cb alloc_cb,
 }
 
 
-int uv_read2_start(uv_stream_t* handle, uv_alloc_cb alloc_cb,
-    uv_read2_cb read_cb) {
-  int err;
-
-  if (handle->flags & UV_HANDLE_READING) {
-    return UV_EALREADY;
-  }
-
-  if (!(handle->flags & UV_HANDLE_READABLE)) {
-    return UV_ENOTCONN;
-  }
-
-  err = ERROR_INVALID_PARAMETER;
-  switch (handle->type) {
-    case UV_NAMED_PIPE:
-      err = uv_pipe_read2_start((uv_pipe_t*)handle, alloc_cb, read_cb);
-      break;
-    default:
-      assert(0);
-  }
-
-  return uv_translate_sys_error(err);
-}
-
-
 int uv_read_stop(uv_stream_t* handle) {
   int err;
 
@@ -131,7 +106,11 @@ int uv_read_stop(uv_stream_t* handle) {
   if (handle->type == UV_TTY) {
     err = uv_tty_read_stop((uv_tty_t*) handle);
   } else {
-    handle->flags &= ~UV_HANDLE_READING;
+    if (handle->type == UV_NAMED_PIPE) {
+      uv__pipe_stop_read((uv_pipe_t*) handle);
+    } else {
+      handle->flags &= ~UV_HANDLE_READING;
+    }
     DECREASE_ACTIVE_COUNT(handle->loop, handle);
   }
 
@@ -205,8 +184,22 @@ int uv_write2(uv_write_t* req,
 int uv_try_write(uv_stream_t* stream,
                  const uv_buf_t bufs[],
                  unsigned int nbufs) {
-  /* NOTE: Won't work with overlapped writes */
-  return UV_ENOSYS;
+  if (stream->flags & UV__HANDLE_CLOSING)
+    return UV_EBADF;
+  if (!(stream->flags & UV_HANDLE_WRITABLE))
+    return UV_EPIPE;
+
+  switch (stream->type) {
+    case UV_TCP:
+      return uv__tcp_try_write((uv_tcp_t*) stream, bufs, nbufs);
+    case UV_TTY:
+      return uv__tty_try_write((uv_tty_t*) stream, bufs, nbufs);
+    case UV_NAMED_PIPE:
+      return UV_EAGAIN;
+    default:
+      assert(0);
+      return UV_ENOSYS;
+  }
 }
 
 
@@ -223,7 +216,7 @@ int uv_shutdown(uv_shutdown_t* req, uv_stream_t* handle, uv_shutdown_cb cb) {
   req->cb = cb;
 
   handle->flags &= ~UV_HANDLE_WRITABLE;
-  handle->shutdown_req = req;
+  handle->stream.conn.shutdown_req = req;
   handle->reqs_pending++;
   REGISTER_HANDLE_REQ(loop, handle, req);
 
@@ -244,6 +237,9 @@ int uv_is_writable(const uv_stream_t* handle) {
 
 
 int uv_stream_set_blocking(uv_stream_t* handle, int blocking) {
+  if (handle->type != UV_NAMED_PIPE)
+    return UV_EINVAL;
+
   if (blocking != 0)
     handle->flags |= UV_HANDLE_BLOCKING_WRITES;
   else

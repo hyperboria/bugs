@@ -56,18 +56,15 @@ static void after_write(uv_write_t* req, int status) {
   if (status == 0)
     return;
 
-  fprintf(stderr, "uv_write error: %s\n", uv_strerror(status));
-
-  if (status == UV_ECANCELED)
-    return;
-
-  ASSERT(status == UV_EPIPE);
-  uv_close((uv_handle_t*)req->handle, on_close);
+  fprintf(stderr,
+          "uv_write error: %s - %s\n",
+          uv_err_name(status),
+          uv_strerror(status));
 }
 
 
 static void after_shutdown(uv_shutdown_t* req, int status) {
-  uv_close((uv_handle_t*)req->handle, on_close);
+  uv_close((uv_handle_t*) req->handle, on_close);
   free(req);
 }
 
@@ -77,19 +74,15 @@ static void after_read(uv_stream_t* handle,
                        const uv_buf_t* buf) {
   int i;
   write_req_t *wr;
-  uv_shutdown_t* req;
+  uv_shutdown_t* sreq;
 
   if (nread < 0) {
     /* Error or EOF */
     ASSERT(nread == UV_EOF);
 
-    if (buf->base) {
-      free(buf->base);
-    }
-
-    req = (uv_shutdown_t*) malloc(sizeof *req);
-    uv_shutdown(req, handle, after_shutdown);
-
+    free(buf->base);
+    sreq = malloc(sizeof* sreq);
+    ASSERT(0 == uv_shutdown(sreq, handle, after_shutdown));
     return;
   }
 
@@ -119,8 +112,9 @@ static void after_read(uv_stream_t* handle,
   }
 
   wr = (write_req_t*) malloc(sizeof *wr);
-
+  ASSERT(wr != NULL);
   wr->buf = uv_buf_init(buf->base, nread);
+
   if (uv_write(&wr->req, handle, &wr->buf, 1, after_write)) {
     FATAL("uv_write failed");
   }

@@ -12,7 +12,7 @@
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-CC = gcc
+CC ?= gcc
 
 CFLAGS += -Wall \
           -Wextra \
@@ -26,8 +26,11 @@ CFLAGS += -Wall \
 INCLUDES = include/stdint-msvc2008.h \
            include/tree.h \
            include/uv-errno.h \
+           include/uv-threadpool.h \
+           include/uv-version.h \
            include/uv-win.h \
            include/uv.h \
+           src/heap-inl.h \
            src/queue.h \
            src/uv-common.h \
            src/win/atomicops-inl.h \
@@ -40,6 +43,7 @@ INCLUDES = include/stdint-msvc2008.h \
 
 OBJS = src/fs-poll.o \
        src/inet.o \
+       src/threadpool.o \
        src/uv-common.o \
        src/version.o \
        src/win/async.o \
@@ -49,6 +53,7 @@ OBJS = src/fs-poll.o \
        src/win/fs-event.o \
        src/win/fs.o \
        src/win/getaddrinfo.o \
+       src/win/getnameinfo.o \
        src/win/handle.o \
        src/win/loop-watcher.o \
        src/win/pipe.o \
@@ -60,7 +65,6 @@ OBJS = src/fs-poll.o \
        src/win/stream.o \
        src/win/tcp.o \
        src/win/thread.o \
-       src/win/threadpool.o \
        src/win/timer.o \
        src/win/tty.o \
        src/win/udp.o \
@@ -70,8 +74,11 @@ OBJS = src/fs-poll.o \
 
 all: libuv.a
 
+clean:
+	-$(RM) $(OBJS) libuv.a
+
 libuv.a: $(OBJS)
 	$(AR) crs $@ $^
 
-# FIXME(bnoordhuis) Don't rebuild everything when a source file changes.
-$(OBJS): $(OBJS:.o=.c) $(INCLUDES)
+$(OBJS): %.o : %.c $(INCLUDES)
+	$(CC) $(CFLAGS) -c -o $@ $<

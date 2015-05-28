@@ -55,9 +55,11 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
   unsigned int nevents;
   unsigned int revents;
   QUEUE* q;
+  uv__io_t* w;
+  sigset_t* pset;
+  sigset_t set;
   uint64_t base;
   uint64_t diff;
-  uv__io_t* w;
   int filter;
   int fflags;
   int count;
@@ -117,6 +119,13 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
     w->events = w->pevents;
   }
 
+  pset = NULL;
+  if (loop->flags & UV_LOOP_BLOCK_SIGPROF) {
+    pset = &set;
+    sigemptyset(pset);
+    sigaddset(pset, SIGPROF);
+  }
+
   assert(timeout >= -1);
   base = loop->time;
   count = 48; /* Benchmarks suggest this gives the best throughput. */
@@ -127,12 +136,18 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
       spec.tv_nsec = (timeout % 1000) * 1000000;
     }
 
+    if (pset != NULL)
+      pthread_sigmask(SIG_BLOCK, pset, NULL);
+
     nfds = kevent(loop->backend_fd,
                   events,
                   nevents,
                   events,
                   ARRAY_SIZE(events),
                   timeout == -1 ? NULL : &spec);
+
+    if (pset != NULL)
+      pthread_sigmask(SIG_UNBLOCK, pset, NULL);
 
     /* Update loop->time unconditionally. It's tempting to skip the update when
      * timeout == 0 (i.e. non-blocking poll) but there is no guarantee that the
@@ -331,7 +346,7 @@ int uv_fs_event_init(uv_loop_t* loop, uv_fs_event_t* handle) {
 
 int uv_fs_event_start(uv_fs_event_t* handle,
                       uv_fs_event_cb cb,
-                      const char* filename,
+                      const char* path,
                       unsigned int flags) {
 #if defined(__APPLE__)
   struct stat statbuf;
@@ -342,13 +357,13 @@ int uv_fs_event_start(uv_fs_event_t* handle,
     return -EINVAL;
 
   /* TODO open asynchronously - but how do we report back errors? */
-  fd = open(filename, O_RDONLY);
+  fd = open(path, O_RDONLY);
   if (fd == -1)
     return -errno;
 
   uv__handle_start(handle);
   uv__io_init(&handle->event_watcher, uv__fs_event, fd);
-  handle->filename = strdup(filename);
+  handle->path = strdup(path);
   handle->cb = cb;
 
 #if defined(__APPLE__)
@@ -377,19 +392,19 @@ fallback:
 
 int uv_fs_event_stop(uv_fs_event_t* handle) {
   if (!uv__is_active(handle))
-    return -EINVAL;
+    return 0;
 
   uv__handle_stop(handle);
 
 #if defined(__APPLE__)
   if (uv__fsevents_close(handle))
-    uv__io_stop(handle->loop, &handle->event_watcher, UV__POLLIN);
-#else
-  uv__io_stop(handle->loop, &handle->event_watcher, UV__POLLIN);
 #endif /* defined(__APPLE__) */
+  {
+    uv__io_close(handle->loop, &handle->event_watcher);
+  }
 
-  free(handle->filename);
-  handle->filename = NULL;
+  free(handle->path);
+  handle->path = NULL;
 
   uv__close(handle->event_watcher.fd);
   handle->event_watcher.fd = -1;

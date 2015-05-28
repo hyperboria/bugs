@@ -90,7 +90,7 @@ static void ipv6_recv_ok(uv_udp_t* handle,
 }
 
 
-static void timeout_cb(uv_timer_t* timer, int status) {
+static void timeout_cb(uv_timer_t* timer) {
   uv_close((uv_handle_t*)&server, close_cb);
   uv_close((uv_handle_t*)&client, close_cb);
   uv_close((uv_handle_t*)&timeout, close_cb);
@@ -147,6 +147,9 @@ static void do_test(uv_udp_recv_cb recv_cb, int bind_flags) {
 
 
 TEST_IMPL(udp_dual_stack) {
+  if (!can_ipv6())
+    RETURN_SKIP("IPv6 not supported");
+
   do_test(ipv6_recv_ok, 0);
 
   ASSERT(recv_cb_called == 1);
@@ -157,6 +160,9 @@ TEST_IMPL(udp_dual_stack) {
 
 
 TEST_IMPL(udp_ipv6_only) {
+  if (!can_ipv6())
+    RETURN_SKIP("IPv6 not supported");
+
   do_test(ipv6_recv_fail, UV_UDP_IPV6ONLY);
 
   ASSERT(recv_cb_called == 0);

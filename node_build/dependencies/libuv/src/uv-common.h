@@ -28,6 +28,7 @@
 #define UV_COMMON_H_
 
 #include <assert.h>
+#include <stdarg.h>
 #include <stddef.h>
 
 #if defined(_MSC_VER) && _MSC_VER < 1600
@@ -45,6 +46,9 @@
 #define container_of(ptr, type, member) \
   ((type *) ((char *) (ptr) - offsetof(type, member)))
 
+#define STATIC_ASSERT(expr)                                                   \
+  void uv__static_assert(int static_assert_failed[1 - 2 * !(expr)])
+
 #ifndef _WIN32
 enum {
   UV__HANDLE_INTERNAL = 0x8000,
@@ -58,6 +62,10 @@ enum {
 # define UV__HANDLE_REF       0x20
 # define UV__HANDLE_CLOSING   0x01
 #endif
+
+int uv__loop_configure(uv_loop_t* loop, uv_loop_option option, va_list ap);
+
+void uv__loop_close(uv_loop_t* loop);
 
 int uv__tcp_bind(uv_tcp_t* tcp,
                  const struct sockaddr* addr,
@@ -83,6 +91,12 @@ int uv__udp_send(uv_udp_send_t* req,
                  unsigned int addrlen,
                  uv_udp_send_cb send_cb);
 
+int uv__udp_try_send(uv_udp_t* handle,
+                     const uv_buf_t bufs[],
+                     unsigned int nbufs,
+                     const struct sockaddr* addr,
+                     unsigned int addrlen);
+
 int uv__udp_recv_start(uv_udp_t* handle, uv_alloc_cb alloccb,
                        uv_udp_recv_cb recv_cb);
 
@@ -91,6 +105,19 @@ int uv__udp_recv_stop(uv_udp_t* handle);
 void uv__fs_poll_close(uv_fs_poll_t* handle);
 
 int uv__getaddrinfo_translate_error(int sys_err);    /* EAI_* error. */
+
+void uv__work_submit(uv_loop_t* loop,
+                     struct uv__work *w,
+                     void (*work)(struct uv__work *w),
+                     void (*done)(struct uv__work *w, int status));
+
+void uv__work_done(uv_async_t* handle);
+
+size_t uv__count_bufs(const uv_buf_t bufs[], unsigned int nbufs);
+
+int uv__socket_sockopt(uv_handle_t* handle, int optname, int* value);
+
+void uv__fs_scandir_cleanup(uv_fs_t* req);
 
 #define uv__has_active_reqs(loop)                                             \
   (QUEUE_EMPTY(&(loop)->active_reqs) == 0)

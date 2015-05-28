@@ -6,13 +6,13 @@ through the process.
 
 ### FORK
 
-Fork the project [on GitHub](https://github.com/joyent/libuv) and check out
+Fork the project [on GitHub](https://github.com/libuv/libuv) and check out
 your copy.
 
 ```
 $ git clone https://github.com/username/libuv.git
 $ cd libuv
-$ git remote add upstream https://github.com/joyent/libuv.git
+$ git remote add upstream https://github.com/libuv/libuv.git
 ```
 
 Now decide if you want your feature or bug fix to go into the master branch
@@ -37,10 +37,10 @@ Okay, so you have decided on the proper branch.  Create a feature branch
 and start hacking:
 
 ```
-$ git checkout -b my-feature-branch -t origin/v0.10
+$ git checkout -b my-feature-branch -t origin/v1.x
 ```
 
-(Where v0.10 is the latest stable branch as of this writing.)
+(Where v1.x is the latest stable branch as of this writing.)
 
 ### CODE
 
@@ -131,7 +131,7 @@ Use `git rebase` (not `git merge`) to sync your work from time to time.
 
 ```
 $ git fetch upstream
-$ git rebase upstream/v0.10  # or upstream/master
+$ git rebase upstream/v1.x  # or upstream/master
 ```
 
 
@@ -142,11 +142,8 @@ Bug fixes and features should come with tests.  Add your tests in the
 Look at other tests to see how they should be structured (license boilerplate,
 the way entry points are declared, etc.).
 
-```
-$ make test
-```
-
-Make sure that there are no test regressions.
+Check README.md file to find out how to run the test suite and make sure that
+there are no test regressions.
 
 ### PUSH
 
@@ -163,15 +160,7 @@ feature branch.  Post a comment in the pull request afterwards; GitHub does
 not send out notifications when you add commits.
 
 
-### CONTRIBUTOR LICENSE AGREEMENT
-
-The current state of affairs is that, in order to get a patch accepted, you need
-to sign Node.js's [contributor license agreement][]. You only need to do that
-once.
-
-
-[issue tracker]: https://github.com/joyent/libuv/issues
+[issue tracker]: https://github.com/libuv/libuv/issues
 [libuv mailing list]: http://groups.google.com/group/libuv
 [IRC]: http://webchat.freelibuv.net/?channels=libuv
 [Google C/C++ style guide]: http://google-styleguide.googlecode.com/svn/trunk/cppguide.xml
-[contributor license agreement]: http://nodejs.org/cla.html

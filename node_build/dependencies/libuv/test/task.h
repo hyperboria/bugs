@@ -22,6 +22,8 @@
 #ifndef TASK_H_
 #define TASK_H_
 
+#include "uv.h"
+
 #include <stdio.h>
 #include <stddef.h>
 #include <stdlib.h>
@@ -37,12 +39,17 @@
 # include <sys/resource.h>  /* setrlimit() */
 #endif
 
+#ifdef __clang__
+# pragma clang diagnostic ignored "-Wvariadic-macros"
+# pragma clang diagnostic ignored "-Wc99-extensions"
+#endif
+
 #define TEST_PORT 9123
 #define TEST_PORT_2 9124
 
 #ifdef _WIN32
-# define TEST_PIPENAME "\\\\.\\pipe\\uv-test"
-# define TEST_PIPENAME_2 "\\\\.\\pipe\\uv-test2"
+# define TEST_PIPENAME "\\\\?\\pipe\\uv-test"
+# define TEST_PIPENAME_2 "\\\\?\\pipe\\uv-test2"
 #else
 # define TEST_PIPENAME "/tmp/uv-test-sock"
 # define TEST_PIPENAME_2 "/tmp/uv-test-sock2"
@@ -68,19 +75,6 @@ typedef enum {
   UDP,
   PIPE
 } stream_type;
-
-/* Log to stderr. */
-#define LOG(...)                        \
-  do {                                  \
-    fprintf(stderr, "%s", __VA_ARGS__); \
-    fflush(stderr);                     \
-  } while (0)
-
-#define LOGF(...)                       \
-  do {                                  \
-    fprintf(stderr, __VA_ARGS__);       \
-    fflush(stderr);                     \
-  } while (0)
 
 /* Die with fatal error. */
 #define FATAL(msg)                                        \
@@ -112,8 +106,11 @@ typedef enum {
 /* This macro cleans up the main loop. This is used to avoid valgrind
  * warnings about memory being "leaked" by the main event loop.
  */
-#define MAKE_VALGRIND_HAPPY()  \
-  uv_loop_delete(uv_default_loop())
+#define MAKE_VALGRIND_HAPPY()           \
+  do {                                  \
+    close_loop(uv_default_loop());      \
+    uv_loop_delete(uv_default_loop());  \
+  } while (0)
 
 /* Just sugar for wrapping the main() for a task or helper. */
 #define TEST_IMPL(name)                                                       \
@@ -148,13 +145,15 @@ enum test_status {
 
 #define RETURN_TODO(explanation)                                              \
   do {                                                                        \
-    LOGF("%s\n", explanation);                                                \
+    fprintf(stderr, "%s\n", explanation);                                     \
+    fflush(stderr);                                                           \
     return TEST_TODO;                                                         \
   } while (0)
 
 #define RETURN_SKIP(explanation)                                              \
   do {                                                                        \
-    LOGF("%s\n", explanation);                                                \
+    fprintf(stderr, "%s\n", explanation);                                     \
+    fflush(stderr);                                                           \
     return TEST_SKIP;                                                         \
   } while (0)
 
@@ -180,10 +179,15 @@ enum test_status {
 
 #include <stdarg.h>
 
+/* Define inline for MSVC */
+# ifdef _MSC_VER
+#  define inline __inline
+# endif
+
 /* Emulate snprintf() on Windows, _snprintf() doesn't zero-terminate the buffer
  * on overflow...
  */
-static int snprintf(char* buf, size_t len, const char* fmt, ...) {
+inline int snprintf(char* buf, size_t len, const char* fmt, ...) {
   va_list ap;
   int n;
 
@@ -203,5 +207,42 @@ static int snprintf(char* buf, size_t len, const char* fmt, ...) {
 }
 
 #endif
+
+#if defined(__clang__) ||                                \
+    defined(__GNUC__) ||                                 \
+    defined(__INTEL_COMPILER) ||                         \
+    defined(__SUNPRO_C)
+# define UNUSED __attribute__((unused))
+#else
+# define UNUSED
+#endif
+
+/* Fully close a loop */
+static void close_walk_cb(uv_handle_t* handle, void* arg) {
+  if (!uv_is_closing(handle))
+    uv_close(handle, NULL);
+}
+
+UNUSED static void close_loop(uv_loop_t* loop) {
+  uv_walk(loop, close_walk_cb, NULL);
+  uv_run(loop, UV_RUN_DEFAULT);
+}
+
+UNUSED static int can_ipv6(void) {
+  uv_interface_address_t* addr;
+  int supported;
+  int count;
+  int i;
+
+  if (uv_interface_addresses(&addr, &count))
+    return 1;  /* Assume IPv6 support on failure. */
+
+  supported = 0;
+  for (i = 0; supported == 0 && i < count; i += 1)
+    supported = (AF_INET6 == addr[i].address.address6.sin6_family);
+
+  uv_free_interface_addresses(addr, count);
+  return supported;
+}
 
 #endif /* TASK_H_ */

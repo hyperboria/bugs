@@ -58,7 +58,7 @@
 static char *process_title;
 
 
-int uv__platform_loop_init(uv_loop_t* loop, int default_loop) {
+int uv__platform_loop_init(uv_loop_t* loop) {
   return uv__kqueue_init(loop);
 }
 
@@ -75,10 +75,11 @@ uint64_t uv__hrtime(uv_clocktype_t type) {
 
 
 int uv_exepath(char* buffer, size_t* size) {
+  char abspath[PATH_MAX * 2 + 1];
   int mib[4];
-  size_t cb;
+  size_t abspath_size;
 
-  if (buffer == NULL || size == NULL)
+  if (buffer == NULL || size == NULL || *size == 0)
     return -EINVAL;
 
 #ifdef __DragonFly__
@@ -93,10 +94,19 @@ int uv_exepath(char* buffer, size_t* size) {
   mib[3] = -1;
 #endif
 
-  cb = *size;
-  if (sysctl(mib, 4, buffer, &cb, NULL, 0))
+  abspath_size = sizeof abspath;;
+  if (sysctl(mib, 4, abspath, &abspath_size, NULL, 0))
     return -errno;
-  *size = strlen(buffer);
+
+  assert(abspath_size > 0);
+  abspath_size -= 1;
+  *size -= 1;
+
+  if (*size > abspath_size)
+    *size = abspath_size;
+
+  memcpy(buffer, abspath, *size);
+  buffer[*size] = '\0';
 
   return 0;
 }
@@ -298,7 +308,7 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
 
   for (i = 0; i < numcpus; i++) {
     cpu_info = &(*cpu_infos)[i];
-    
+
     cpu_info->cpu_times.user = (uint64_t)(cp_times[CP_USER+cur]) * multiplier;
     cpu_info->cpu_times.nice = (uint64_t)(cp_times[CP_NICE+cur]) * multiplier;
     cpu_info->cpu_times.sys = (uint64_t)(cp_times[CP_SYS+cur]) * multiplier;

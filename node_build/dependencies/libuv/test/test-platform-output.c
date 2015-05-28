@@ -27,7 +27,9 @@
 TEST_IMPL(platform_output) {
   char buffer[512];
   size_t rss;
+  size_t size;
   double uptime;
+  uv_rusage_t rusage;
   uv_cpu_info_t* cpus;
   uv_interface_address_t* interfaces;
   int count;
@@ -38,6 +40,11 @@ TEST_IMPL(platform_output) {
   ASSERT(err == 0);
   printf("uv_get_process_title: %s\n", buffer);
 
+  size = sizeof(buffer);
+  err = uv_cwd(buffer, &size);
+  ASSERT(err == 0);
+  printf("uv_cwd: %s\n", buffer);
+
   err = uv_resident_set_memory(&rss);
   ASSERT(err == 0);
   printf("uv_resident_set_memory: %llu\n", (unsigned long long) rss);
@@ -46,6 +53,20 @@ TEST_IMPL(platform_output) {
   ASSERT(err == 0);
   ASSERT(uptime > 0);
   printf("uv_uptime: %f\n", uptime);
+
+  err = uv_getrusage(&rusage);
+  ASSERT(err == 0);
+  ASSERT(rusage.ru_utime.tv_sec >= 0);
+  ASSERT(rusage.ru_utime.tv_usec >= 0);
+  ASSERT(rusage.ru_stime.tv_sec >= 0);
+  ASSERT(rusage.ru_stime.tv_usec >= 0);
+  printf("uv_getrusage:\n");
+  printf("  user: %llu sec %llu microsec\n",
+         (unsigned long long) rusage.ru_utime.tv_sec,
+         (unsigned long long) rusage.ru_utime.tv_usec);
+  printf("  system: %llu sec %llu microsec\n",
+         (unsigned long long) rusage.ru_stime.tv_sec,
+         (unsigned long long) rusage.ru_stime.tv_usec);
 
   err = uv_cpu_info(&cpus, &count);
   ASSERT(err == 0);

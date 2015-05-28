@@ -125,10 +125,6 @@ INLINE static void uv_process_endgames(uv_loop_t* loop) {
         uv_poll_endgame(loop, (uv_poll_t*) handle);
         break;
 
-      case UV_IOCP:
-        uv_iocp_endgame(loop, (uv_iocp_t*) handle);
-        break;
-
       case UV_TIMER:
         uv_timer_endgame(loop, (uv_timer_t*) handle);
         break;
@@ -172,7 +168,7 @@ INLINE static HANDLE uv__get_osfhandle(int fd)
   /* But  it also correctly checks the FD and returns INVALID_HANDLE_VALUE */
   /* for invalid FDs in release builds (or if you let the assert continue).  */
   /* So this wrapper function disables asserts when calling _get_osfhandle. */
-  
+
   HANDLE handle;
   UV_BEGIN_DISABLE_CRT_ASSERT();
   handle = (HANDLE) _get_osfhandle(fd);

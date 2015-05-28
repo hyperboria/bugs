@@ -41,16 +41,15 @@ static void close_cb(uv_handle_t* handle) {
 }
 
 
-static void repeat_1_cb(uv_timer_t* handle, int status) {
+static void repeat_1_cb(uv_timer_t* handle) {
   int r;
 
   ASSERT(handle == &repeat_1);
-  ASSERT(status == 0);
-
   ASSERT(uv_timer_get_repeat((uv_timer_t*)handle) == 50);
 
-  LOGF("repeat_1_cb called after %ld ms\n",
-      (long int)(uv_now(uv_default_loop()) - start_time));
+  fprintf(stderr, "repeat_1_cb called after %ld ms\n",
+          (long int)(uv_now(uv_default_loop()) - start_time));
+  fflush(stderr);
 
   repeat_1_cb_called++;
 
@@ -67,13 +66,13 @@ static void repeat_1_cb(uv_timer_t* handle, int status) {
 }
 
 
-static void repeat_2_cb(uv_timer_t* handle, int status) {
+static void repeat_2_cb(uv_timer_t* handle) {
   ASSERT(handle == &repeat_2);
-  ASSERT(status == 0);
   ASSERT(repeat_2_cb_allowed);
 
-  LOGF("repeat_2_cb called after %ld ms\n",
-      (long int)(uv_now(uv_default_loop()) - start_time));
+  fprintf(stderr, "repeat_2_cb called after %ld ms\n",
+          (long int)(uv_now(uv_default_loop()) - start_time));
+  fflush(stderr);
 
   repeat_2_cb_called++;
 
@@ -83,8 +82,9 @@ static void repeat_2_cb(uv_timer_t* handle, int status) {
     return;
   }
 
-  LOGF("uv_timer_get_repeat %ld ms\n",
-      (long int)uv_timer_get_repeat(&repeat_2));
+  fprintf(stderr, "uv_timer_get_repeat %ld ms\n",
+          (long int)uv_timer_get_repeat(&repeat_2));
+  fflush(stderr);
   ASSERT(uv_timer_get_repeat(&repeat_2) == 100);
 
   /* This shouldn't take effect immediately. */
@@ -132,8 +132,9 @@ TEST_IMPL(timer_again) {
   ASSERT(repeat_2_cb_called == 2);
   ASSERT(close_cb_called == 2);
 
-  LOGF("Test took %ld ms (expected ~700 ms)\n",
-       (long int)(uv_now(uv_default_loop()) - start_time));
+  fprintf(stderr, "Test took %ld ms (expected ~700 ms)\n",
+          (long int)(uv_now(uv_default_loop()) - start_time));
+  fflush(stderr);
 
   MAKE_VALGRIND_HAPPY();
   return 0;

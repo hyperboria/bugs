@@ -47,7 +47,7 @@
 static char *process_title;
 
 
-int uv__platform_loop_init(uv_loop_t* loop, int default_loop) {
+int uv__platform_loop_init(uv_loop_t* loop) {
   return uv__kqueue_init(loop);
 }
 
@@ -85,7 +85,7 @@ int uv_exepath(char* buffer, size_t* size) {
   pid_t mypid;
   int err;
 
-  if (buffer == NULL || size == NULL)
+  if (buffer == NULL || size == NULL || *size == 0)
     return -EINVAL;
 
   mypid = getpid();
@@ -108,17 +108,19 @@ int uv_exepath(char* buffer, size_t* size) {
     }
     argsbuf_size *= 2U;
   }
+
   if (argsbuf[0] == NULL) {
     err = -EINVAL;  /* FIXME(bnoordhuis) More appropriate error. */
     goto out;
   }
+
+  *size -= 1;
   exepath_size = strlen(argsbuf[0]);
-  if (exepath_size >= *size) {
-    err = -EINVAL;
-    goto out;
-  }
-  memcpy(buffer, argsbuf[0], exepath_size + 1U);
-  *size = exepath_size;
+  if (*size > exepath_size)
+    *size = exepath_size;
+
+  memcpy(buffer, argsbuf[0], *size);
+  buffer[*size] = '\0';
   err = 0;
 
 out:
@@ -180,29 +182,23 @@ int uv_get_process_title(char* buffer, size_t size) {
 
 
 int uv_resident_set_memory(size_t* rss) {
-  kvm_t *kd = NULL;
-  struct kinfo_proc *kinfo = NULL;
-  pid_t pid;
-  int nprocs, max_size = sizeof(struct kinfo_proc);
+  struct kinfo_proc kinfo;
   size_t page_size = getpagesize();
+  size_t size = sizeof(struct kinfo_proc);
+  int mib[6];
 
-  pid = getpid();
+  mib[0] = CTL_KERN;
+  mib[1] = KERN_PROC;
+  mib[2] = KERN_PROC_PID;
+  mib[3] = getpid();
+  mib[4] = sizeof(struct kinfo_proc);
+  mib[5] = 1;
 
-  kd = kvm_open(NULL, _PATH_MEM, NULL, O_RDONLY, "kvm_open");
-  if (kd == NULL) goto error;
+  if (sysctl(mib, 6, &kinfo, &size, NULL, 0) < 0)
+    return -errno;
 
-  kinfo = kvm_getprocs(kd, KERN_PROC_PID, pid, max_size, &nprocs);
-  if (kinfo == NULL) goto error;
-
-  *rss = kinfo->p_vm_rssize * page_size;
-
-  kvm_close(kd);
-
+  *rss = kinfo.p_vm_rssize * page_size;
   return 0;
-
-error:
-  if (kd) kvm_close(kd);
-  return -EPERM;
 }
 
 
@@ -267,7 +263,7 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
     }
 
     cpu_info = &(*cpu_infos)[i];
-    
+
     cpu_info->cpu_times.user = (uint64_t)(info[CP_USER]) * multiplier;
     cpu_info->cpu_times.nice = (uint64_t)(info[CP_NICE]) * multiplier;
     cpu_info->cpu_times.sys = (uint64_t)(info[CP_SYS]) * multiplier;

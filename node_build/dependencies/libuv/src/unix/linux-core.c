@@ -36,21 +36,24 @@
 #include <fcntl.h>
 #include <time.h>
 
-#ifndef __ANDROID__
 #define HAVE_IFADDRS_H 1
-#endif
 
 #ifdef __UCLIBC__
 # if __UCLIBC_MAJOR__ < 0 || __UCLIBC_MINOR__ < 9 || __UCLIBC_SUBLEVEL__ < 32
 #  undef HAVE_IFADDRS_H
 # endif
 #endif
+
 #ifdef HAVE_IFADDRS_H
-# include <ifaddrs.h>
+# if defined(__ANDROID__)
+#  include "android-ifaddrs.h"
+# else
+#  include <ifaddrs.h>
+# endif
 # include <sys/socket.h>
 # include <net/ethernet.h>
 # include <linux/if_packet.h>
-#endif
+#endif /* HAVE_IFADDRS_H */
 
 /* Available from 2.6.32 onwards. */
 #ifndef CLOCK_MONOTONIC_COARSE
@@ -71,7 +74,7 @@ static void read_speeds(unsigned int numcpus, uv_cpu_info_t* ci);
 static unsigned long read_cpufreq(unsigned int cpunum);
 
 
-int uv__platform_loop_init(uv_loop_t* loop, int default_loop) {
+int uv__platform_loop_init(uv_loop_t* loop) {
   int fd;
 
   fd = uv__epoll_create1(UV__EPOLL_CLOEXEC);
@@ -107,6 +110,7 @@ void uv__platform_loop_delete(uv_loop_t* loop) {
 
 void uv__platform_invalidate_fd(uv_loop_t* loop, int fd) {
   struct uv__epoll_event* events;
+  struct uv__epoll_event dummy;
   uintptr_t i;
   uintptr_t nfds;
 
@@ -114,22 +118,38 @@ void uv__platform_invalidate_fd(uv_loop_t* loop, int fd) {
 
   events = (struct uv__epoll_event*) loop->watchers[loop->nwatchers];
   nfds = (uintptr_t) loop->watchers[loop->nwatchers + 1];
-  if (events == NULL)
-    return;
+  if (events != NULL)
+    /* Invalidate events with same file descriptor */
+    for (i = 0; i < nfds; i++)
+      if ((int) events[i].data == fd)
+        events[i].data = -1;
 
-  /* Invalidate events with same file descriptor */
-  for (i = 0; i < nfds; i++)
-    if ((int) events[i].data == fd)
-      events[i].data = -1;
+  /* Remove the file descriptor from the epoll.
+   * This avoids a problem where the same file description remains open
+   * in another process, causing repeated junk epoll events.
+   *
+   * We pass in a dummy epoll_event, to work around a bug in old kernels.
+   */
+  if (loop->backend_fd >= 0) {
+    /* Work around a bug in kernels 3.10 to 3.19 where passing a struct that
+     * has the EPOLLWAKEUP flag set generates spurious audit syslog warnings.
+     */
+    memset(&dummy, 0, sizeof(dummy));
+    uv__epoll_ctl(loop->backend_fd, UV__EPOLL_CTL_DEL, fd, &dummy);
+  }
 }
 
 
 void uv__io_poll(uv_loop_t* loop, int timeout) {
+  static int no_epoll_pwait;
+  static int no_epoll_wait;
   struct uv__epoll_event events[1024];
   struct uv__epoll_event* pe;
   struct uv__epoll_event e;
   QUEUE* q;
   uv__io_t* w;
+  sigset_t sigset;
+  uint64_t sigmask;
   uint64_t base;
   uint64_t diff;
   int nevents;
@@ -179,15 +199,42 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
     w->events = w->pevents;
   }
 
+  sigmask = 0;
+  if (loop->flags & UV_LOOP_BLOCK_SIGPROF) {
+    sigemptyset(&sigset);
+    sigaddset(&sigset, SIGPROF);
+    sigmask |= 1 << (SIGPROF - 1);
+  }
+
   assert(timeout >= -1);
   base = loop->time;
   count = 48; /* Benchmarks suggest this gives the best throughput. */
 
   for (;;) {
-    nfds = uv__epoll_wait(loop->backend_fd,
-                          events,
-                          ARRAY_SIZE(events),
-                          timeout);
+    if (sigmask != 0 && no_epoll_pwait != 0)
+      if (pthread_sigmask(SIG_BLOCK, &sigset, NULL))
+        abort();
+
+    if (no_epoll_wait != 0 || (sigmask != 0 && no_epoll_pwait == 0)) {
+      nfds = uv__epoll_pwait(loop->backend_fd,
+                             events,
+                             ARRAY_SIZE(events),
+                             timeout,
+                             sigmask);
+      if (nfds == -1 && errno == ENOSYS)
+        no_epoll_pwait = 1;
+    } else {
+      nfds = uv__epoll_wait(loop->backend_fd,
+                            events,
+                            ARRAY_SIZE(events),
+                            timeout);
+      if (nfds == -1 && errno == ENOSYS)
+        no_epoll_wait = 1;
+    }
+
+    if (sigmask != 0 && no_epoll_pwait != 0)
+      if (pthread_sigmask(SIG_UNBLOCK, &sigset, NULL))
+        abort();
 
     /* Update loop->time unconditionally. It's tempting to skip the update when
      * timeout == 0 (i.e. non-blocking poll) but there is no guarantee that the
@@ -201,6 +248,12 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
     }
 
     if (nfds == -1) {
+      if (errno == ENOSYS) {
+        /* epoll_wait() or epoll_pwait() failed, try the other system call. */
+        assert(no_epoll_wait == 0 || no_epoll_pwait == 0);
+        continue;
+      }
+
       if (errno != EINTR)
         abort();
 
@@ -349,10 +402,13 @@ void uv_loadavg(double avg[3]) {
 int uv_exepath(char* buffer, size_t* size) {
   ssize_t n;
 
-  if (buffer == NULL || size == NULL)
+  if (buffer == NULL || size == NULL || *size == 0)
     return -EINVAL;
 
-  n = readlink("/proc/self/exe", buffer, *size - 1);
+  n = *size - 1;
+  if (n > 0)
+    n = readlink("/proc/self/exe", buffer, n);
+
   if (n == -1)
     return -errno;
 
@@ -720,6 +776,7 @@ int uv_interface_addresses(uv_interface_address_t** addresses,
     return -errno;
 
   *count = 0;
+  *addresses = NULL;
 
   /* Count the number of interfaces */
   for (ent = addrs; ent != NULL; ent = ent->ifa_next) {
@@ -731,6 +788,9 @@ int uv_interface_addresses(uv_interface_address_t** addresses,
 
     (*count)++;
   }
+
+  if (*count == 0)
+    return 0;
 
   *addresses = malloc(*count * sizeof(**addresses));
   if (!(*addresses))

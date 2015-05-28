@@ -97,6 +97,22 @@ TEST_IMPL(getaddrinfo_fail) {
 }
 
 
+TEST_IMPL(getaddrinfo_fail_sync) {
+  uv_getaddrinfo_t req;
+
+  ASSERT(0 > uv_getaddrinfo(uv_default_loop(),
+                            &req,
+                            NULL,
+                            "xyzzy.xyzzy.xyzzy",
+                            NULL,
+                            NULL));
+  uv_freeaddrinfo(req.addrinfo);
+
+  MAKE_VALGRIND_HAPPY();
+  return 0;
+}
+
+
 TEST_IMPL(getaddrinfo_basic) {
   int r;
   getaddrinfo_handle = (uv_getaddrinfo_t*)malloc(sizeof(uv_getaddrinfo_t));
@@ -118,6 +134,22 @@ TEST_IMPL(getaddrinfo_basic) {
 }
 
 
+TEST_IMPL(getaddrinfo_basic_sync) {
+  uv_getaddrinfo_t req;
+
+  ASSERT(0 == uv_getaddrinfo(uv_default_loop(),
+                             &req,
+                             NULL,
+                             name,
+                             NULL,
+                             NULL));
+  uv_freeaddrinfo(req.addrinfo);
+
+  MAKE_VALGRIND_HAPPY();
+  return 0;
+}
+
+
 TEST_IMPL(getaddrinfo_concurrent) {
   int i, r;
   int* data;
@@ -126,6 +158,7 @@ TEST_IMPL(getaddrinfo_concurrent) {
     callback_counts[i] = 0;
 
     data = (int*)malloc(sizeof(int));
+    ASSERT(data != NULL);
     *data = i;
     getaddrinfo_handles[i].data = data;
 
