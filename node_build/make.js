@@ -93,7 +93,7 @@ Builder.configure({
     }
 
     if (builder.config.systemName === 'win32') {
-        builder.config.cflags.push('-Wno-format');
+        builder.config.cflags.push('-Wno-format', '-c');
     } else if (builder.config.systemName === 'linux') {
         builder.config.ldflags.push('-Wl,-z,relro,-z,now,-z,noexecstack');
         builder.config.cflags.push('-DHAS_ETH_INTERFACE=1');
@@ -285,6 +285,7 @@ Builder.configure({
         if (builder.config.systemName === 'win32') {
             builder.config.libs.push(
                 '-lws2_32',
+                '-luserenv',
                 '-lpsapi',   // GetProcessMemoryInfo()
                 '-liphlpapi' // GetAdapterAddresses()
             );

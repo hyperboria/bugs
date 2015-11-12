@@ -1,7 +1,7 @@
 CultureSpy worked out how to compile cjdns for Windows for Windows. So if you happen to use this broken ass OS and want to use cjdns....
+Tigusoft <info at tigusoft.pl> updated few details, as of 2015-11-11 it was tested on Windows 7 and works fine with current cjdns.
 
 # Building cjdns On Windows For Windows
-
 
 Install Cygwin from [here](https://cygwin.com/install.html)
 
@@ -81,6 +81,20 @@ Edit `node_build/dependencies/libuv/Makefile` so that it will use the mingw gcc 
 (That is, comment out the line that sets the CC variable.)
 
 Then run `./do` to build
+
+If you have any problems with compilation of libuv (with gyp) do this:
+enter folder: build_win32/dependencies/ (it is created during first build or build attempt)
+there, in sub-folder gyp, execute:
+```
+python setup.py install
+```
+
+and, in sub-folder libuv, execute:
+```
+python gyp_uv.py
+```
+
+After this run ./do again.
 
 The system churns for a while, hopefully producing no errors. It will eventually tell you it's time to run `cjdroute`. It lies.
 
