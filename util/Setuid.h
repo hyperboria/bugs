@@ -20,6 +20,13 @@
 #include "util/Linker.h"
 #define Setuid_IMPL "util/Setuid_" + builder.config.systemName + ".c"
 
+#include <linux/capability.h>
+#ifndef CAP_TO_MASK
+    #define Setuid_NO 1
+#else
+    #define Setuid_NO 0
+#endif
+
 void Setuid_preSetuid(struct Allocator* alloc, struct Except* eh);
 void Setuid_postSetuid(struct Allocator* alloc, struct Except* eh);
 
@@ -27,7 +34,7 @@ void Setuid_postSetuid(struct Allocator* alloc, struct Except* eh);
     var done = this.async();
     require("fs").exists(Setuid_IMPL, function (exists) {
         var out = "";
-        if (!exists) {
+        if (!exists || Setuid_NO === 1) {
             out = "void Setuid_preSetuid(struct Allocator* alloc, struct Except* eh) { }\n" +
                 "void Setuid_postSetuid(struct Allocator* alloc, struct Except* eh) { }";
             console.log("No setuid keepNetAdmin");
