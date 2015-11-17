@@ -1,0 +1,11 @@
+[Unit]
+Description=Cjdns activation socket.
+
+[Socket]
+ListenStream=/run/cjdns/cjdns.socket
+Accept=true
+SocketMode=0600
+
+[Install]
+WantedBy=sockets.target
+
