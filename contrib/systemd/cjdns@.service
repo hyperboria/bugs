@@ -10,7 +10,7 @@ ProtectSystem=true
 SyslogIdentifier=cjdroute
 
 Type=forking
-ExecStart=/usr/lib/systemd/scripts/cjdns-trap.sh
+ExecStart=/usr/lib/systemd/scripts/cjdns-trap /usr/bin/cjdroute
 StandardInput=socket
 StandardOutput=socket
 StandardError=journal

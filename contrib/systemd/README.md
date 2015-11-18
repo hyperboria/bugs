@@ -2,5 +2,5 @@
 
 ```bash
 mv contrib/systemd/cjdns* /usr/lib/systemd/systemd/
-mv conrtib/bash/cjdns-trap.sh /usr/lib/systemd/scripts/
+mv ./sockettrap /usr/lib/systemd/scripts/cjdns-trap
 ```
