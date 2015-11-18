@@ -39,6 +39,7 @@ scalability issues that plague existing networks.
 
 * [irc://irc.efnet.org/#cjdns][IRC Web]
 * [Hyperboria][] the largest cjdns network, as of October 2015 there are 2100 nodes.
+* [MeshWish.me](https://meshwith.me/) Endpoint for the Hyperboria. Also, they [have amazing documentation](https://docs.meshwith.me/)
 * ~~Project Meshnet~~ (Currently down)
 * [/r/darknetplan][]
 * [#cjdns on Twitter][]
