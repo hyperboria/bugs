@@ -346,7 +346,7 @@ def main(argv):
         # Announce we dropped privs
         logging.info("Dropped privileges: running as {}:{}".format(
             pwd.getpwuid(os.getuid())[0], grp.getgrgid(os.getgid())[0]))
-    except OSError:
+    except (OSError,KeyError):
         # Complain we couldn't drop privs right
         logging.warning("Could not drop privileges: running as {}:{}".format(
             pwd.getpwuid(os.getuid())[0], grp.getgrgid(os.getgid())[0]))
