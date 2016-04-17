@@ -27,16 +27,16 @@ p.then(function herp(i) {
         .then(function(i) {
             console.log("or here!");
         },function(e) {
-            console.log("got error",e);
+            //console.log("got error",e);
             throw new Error("something else went wrong");
         })
         .catch(function(e) {
-            console.log("we caught e",e);
+            //console.log("we caught e",e);
             return 42;
         })
-            .then(function(res) {
-                if(42 != res) throw new Error("fail...");
-            });
+        .then(function(res) {
+            if(42 != res) throw new Error("fail...");
+        });
 });
 
         

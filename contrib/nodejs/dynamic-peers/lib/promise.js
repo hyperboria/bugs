@@ -26,6 +26,11 @@ var Promise = function(callback) {
                     res = stage.ok(res);
                     stages.shift();
                 } else {
+                    while(!stage.err) {
+                        if(stages.length == 0)
+                            throw err;
+                        stage = stages.shift();
+                    }
                     res = stage.err(err,res);
                     mode = ACCEPT;
                     stages.shift();
@@ -43,7 +48,7 @@ var Promise = function(callback) {
         return doit(res,ACCEPT);
     }
     function reject(e) {
-        return doit(res,REJECT);
+        return doit(e,REJECT);
     }
     callback(accept,reject);
     return {
@@ -73,18 +78,20 @@ var Promise = function(callback) {
 module.exports = Promise;
 
 Promise.wrap = function(fn) {
-    var that = this;
-    var args = Array.prototype.slice.call(arguments, 1);
-    return new Promise(function(accept,reject) {
-        args.push(function(err, res) {
-            if(err) reject(err);
-            else accept(res);
+    return function() {
+        var that = this;
+        var args = Array.prototype.slice.call(arguments);
+        return new Promise(function(accept,reject) {
+            args.push(function(err, res) {
+                if(err) reject(err);
+                else accept(res);
+            });
+            try { fn.apply(that, args); }
+            catch(e) {
+                reject(e);
+            }
         });
-        try { fn.apply(that, args); }
-        catch(e) {
-            reject(e);
-        }
-    });
+    }
 }
 
 Promise.all = function(promises) {

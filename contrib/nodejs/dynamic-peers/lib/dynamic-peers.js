@@ -7,6 +7,9 @@ var Promise = require('./promise')
 var readFile = Promise.wrap(fs.readFile);
 var resolve = Promise.wrap(dns.resolve);
 
+var conf_name = process.env.conf;
+if(!conf_name) conf_name = "cjdns_dynamic.conf";
+
 readFile
 (path.join(os.homedir(),".config",conf_name))
 .then(JSON.parse)
@@ -79,9 +82,6 @@ readFile
             }
         });
     });
-}
-
-var conf_name = process.env.conf;
-if(!conf_name) conf_name = "cjdns_dynamic.conf";
+});
 
 
