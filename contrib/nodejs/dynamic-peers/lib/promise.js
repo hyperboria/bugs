@@ -66,7 +66,7 @@ var Promise = function(callback) {
 
 module.exports = Promise;
 
-Promise.nodeify = function(fn) {
+Promise.wrap = function(fn) {
     var that = this;
     var args = Array.prototype.slice.call(arguments, 1);
     return new Promise(function(accept,reject) {
