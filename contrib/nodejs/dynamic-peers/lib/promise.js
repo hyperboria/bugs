@@ -2,6 +2,9 @@
 
 var sentinel = "unset";
 
+const ACCEPT = true;
+const REJECT = false;
+
 var Promise = function(callback) {
     var result = sentinel;
     var err = sentinel;
@@ -16,21 +19,23 @@ var Promise = function(callback) {
         } else {
             err = res;
         }
-        while(stages) {
+        while(stages.length > 0) {
             var stage = stages[0];
             try {
                 if(mode === ACCEPT) {
                     res = stage.ok(res);
-                    stages.pop();
+                    stages.shift();
                 } else {
                     res = stage.err(err,res);
                     mode = ACCEPT;
-                    stages.pop();
+                    stages.shift();
                 }
             } catch(e) {
                 mode = REJECT;
                 err = e;
-                stages.pop();
+                stages.shift();
+                if(!stages.length)
+                    throw e;
             }                
         }
     }
@@ -40,6 +45,7 @@ var Promise = function(callback) {
     function reject(e) {
         return doit(res,REJECT);
     }
+    callback(accept,reject);
     return {
         then: function(ok,notok) {
             // if already set, don't bother with stages
@@ -101,3 +107,7 @@ Promise.all = function(promises) {
         }
     });
 }
+
+Promise.success = new Promise(function(accept,reject) {
+    accept(true);
+});
