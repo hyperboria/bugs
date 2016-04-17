@@ -2,7 +2,9 @@ var path = require('path');
 var os = require('os');
 var fs = require('fs');
 var dns = require('dns');
-var Promise = require('./promise')
+var Promise = require('./promise');
+
+var Cjdns = require('cjdns');
 
 var readFile = Promise.wrap(fs.readFile);
 var resolve = Promise.wrap(dns.resolve);
