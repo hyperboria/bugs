@@ -4,7 +4,7 @@ var fs = require('fs');
 var dns = require('dns');
 var Promise = require('./promise');
 
-var Cjdns = require('cjdns');
+var Cjdns = require('./cjdns/cjdnsadmin/cjdnsadmin');
 
 var readFile = Promise.wrap(fs.readFile);
 var resolve = Promise.wrap(dns.resolve);
