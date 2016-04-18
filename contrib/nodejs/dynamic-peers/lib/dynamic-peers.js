@@ -16,17 +16,26 @@ readFile
 (path.join(os.homedir(),".config",conf_name))
 .then(JSON.parse)
 .then(function (nodes) {
+    console.log("got nodes");
     Cjdns.connectWithAdminInfo(function(cjdns) {
+        console.log("connected");
         const peerStats =
-              Promise.denodify(cjdns.InterfaceController_peerStats);
+              Promise.wrap(cjdns.InterfaceController_peerStats);
         
         function link_up(node) {
+            console.log("link up",node.publicKey,
+                        node.address, node.port,
+                        node.password);
+            // can't attach port until the DNS lookup
+            var address = node.address + ":" + node.port;
             cjdns.UDPInterface_beginConnection(node.publicKey,
-                                               node.address,
+                                               address,
                                                node.password,
                                                function() {
-                                                   console.log("linked",
-                                                               publicKey);
+                                                   console.log(
+                                                       "linked",
+                                                       node.address,
+                                                       node.publicKey);
                                                }
                                               );
         }
