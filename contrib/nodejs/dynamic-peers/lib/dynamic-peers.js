@@ -23,19 +23,13 @@ readFile
               Promise.wrap(cjdns.InterfaceController_peerStats);
         
         function link_up(node) {
-            console.log("link up",node.publicKey,
-                        node.address, node.port,
-                        node.password);
             // can't attach port until the DNS lookup
             var address = node.address + ":" + node.port;
+            console.log("link up", address, node.publicKey);
             cjdns.UDPInterface_beginConnection(node.publicKey,
                                                address,
                                                node.password,
                                                function() {
-                                                   console.log(
-                                                       "linked",
-                                                       node.address,
-                                                       node.publicKey);
                                                }
                                               );
         }
