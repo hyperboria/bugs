@@ -424,6 +424,10 @@ Builder.configure({
     builder.buildExecutable('contrib/c/privatetopublic.c');
     builder.buildExecutable('contrib/c/sybilsim.c');
     builder.buildExecutable('contrib/c/makekeys.c');
+    if (builder.config.systemName !== 'win32') {
+        // Everything else is UNIX based.
+        builder.buildExecutable('contrib/c/sockettrap.c');
+    }
 
     builder.buildExecutable('crypto/random/randombytes.c');
 
