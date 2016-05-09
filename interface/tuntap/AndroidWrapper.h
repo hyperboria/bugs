@@ -12,12 +12,21 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef Linker_H
-#define Linker_H
+#ifndef AndroidWrapper_H
+#define AndroidWrapper_H
 
-// Trailing anonymous struct swollows the semicolon.
-#define Linker_require(req) \
-    struct Linker_x<?js file.links.push(req); \
-        return Math.random(16).toString().replace(/[^0-9]/g,'') ?>
+#include "interface/Iface.h"
+#include "memory/Allocator.h"
+#include "util/log/Log.h"
+#include "util/Linker.h"
+Linker_require("interface/tuntap/AndroidWrapper.c");
+
+struct AndroidWrapper
+{
+    struct Iface internalIf;
+    struct Iface externalIf;
+};
+
+struct AndroidWrapper* AndroidWrapper_new(struct Allocator* alloc, struct Log* log);
 
 #endif

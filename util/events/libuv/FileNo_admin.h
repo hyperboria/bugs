@@ -12,12 +12,26 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef Linker_H
-#define Linker_H
+#ifndef FileNo_admin_H
+#define FileNo_admin_H
 
-// Trailing anonymous struct swollows the semicolon.
-#define Linker_require(req) \
-    struct Linker_x<?js file.links.push(req); \
-        return Math.random(16).toString().replace(/[^0-9]/g,'') ?>
+#include "admin/Admin.h"
+#include "memory/Allocator.h"
+#include "util/log/Log.h"
+#include "util/events/EventBase.h"
+#include "util/events/FileNo.h"
+#include "util/Linker.h"
+Linker_require("util/events/libuv/FileNo_admin.c");
+
+struct FileNo_admin
+{
+    void* userData;
+};
+
+void FileNo_admin_register(struct Admin* admin,
+                           struct Allocator* alloc,
+                           struct EventBase* base,
+                           struct Log* logger,
+                           struct Except* eh);
 
 #endif
