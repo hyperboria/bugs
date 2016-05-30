@@ -1,6 +1,6 @@
 ## cjdns google summer of code
 
-[Google Summer of Code](http://www.google-melange.com/gsoc/document/show/gsoc_program/google/gsoc2015/help_page) has several goals:
+[Google Summer of Code](https://www.google-melange.com/gsoc/document/show/gsoc_program/google/gsoc2015/help_page) has several goals:
 
 1. Create and release open source code for the benefit of all
 2. Inspire young developers to begin participating in open source development
@@ -36,4 +36,4 @@ TODO: need to think about how remote-friendly this idea is
 
 ### DNS
 
-See [DNS, with trust based on peering-like agreements](dns.html#dns-with-trust-based-on-peering-like-agreements)
+See [DNS, with trust based on peering-like agreements](dns.md#dns-with-trust-based-on-peering-like-agreements)

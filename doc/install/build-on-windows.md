@@ -31,11 +31,9 @@ windows-default-manifest
 make
 ```
 
-[Install node.js](http://nodejs.org/download/)
-
+[Install node.js](https://nodejs.org/download/)
 
 Get the [cjdns source](https://github.com/cjdelisle/cjdns)
-
 
 Create `C:\tmp`
 
@@ -61,6 +59,7 @@ Make a small edit to the cjdns JS build system:
      logLevel:       process.env['Log_LEVEL'] || 'DEBUG'
  }, function (builder, waitFor) {
 ```
+
 (that is, replace the line that says `tempDir: '/tmp'` with `tempDir: 'C:\\tmp'`)
 
 This works around an issue with the detection of the tmp directory.
@@ -102,6 +101,6 @@ The system churns for a while, hopefully producing no errors. It will eventually
 
 Or put cjdroute.exe wherever you like.
 
-Continue following [instructions here](../windows.md#run-time-dependencies)
+Continue following [instructions here](windows.md#run-time-dependencies)
 
-And obviously [secure your shit](windows-firewall.md)
+And obviously [secure your shit](../config/windows-firewall.md)

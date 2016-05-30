@@ -5,7 +5,7 @@
 - [Freifunk (Germany)](https://freifunk.net)
 - [Guifi (Catalonia)](https://guifi.net)
 - [Altermundi (Argentinia)](https://altermundi.net/)
-  - [50 km link using Ubiquiti Rocket](http://blog.altermundi.net/article/completamos-el-enlace-de-50km/)
+  - [50 km link using Ubiquiti Rocket](https://blog.altermundi.net/article/completamos-el-enlace-de-50km/)
 - [Ninux (Italy)](https://ninux.org)
 - [AWMN (Greece)](https://awmn.net)
 - [Red Hook Wifi (NY, USA)](http://redhookwifi.org)
@@ -26,5 +26,6 @@
 
 ## Appliances
 
-- [Commotion Wireless](https://commotionwireless.net)
+- [Commotion Wireless](
+https://commotionwireless.net/blog/2013/02/02/case-study-red-hook-initiative-wifi-tidepools/)
 - [Serval Project](http://servalproject.org)

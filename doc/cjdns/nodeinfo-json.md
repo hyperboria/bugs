@@ -25,7 +25,7 @@ Sample Files:
     "name": "Your name, handle, nick, whatever",
     "email": "you@domain.tld",
     "xmpp": "you@domain.tld",
-    "other cool communication service": "whatever identifier they use",
+    "other cool communication service": "whatever identifier they use"
   },
   "last_modified": "2014-11-30T00:35:48+00:00",
   "pgp": {
@@ -47,6 +47,27 @@ Sample Files:
       "name": "MutliURI service",
       "description": "Some service with multiple URIs"
     }
-  ]
+  ],
+  "location":{
+    "longitude":0,
+    "latitude":0,
+    "altitude":0,
+    "continent":"NA",
+    "region":"Cascadia",
+    "municipality":"Seattle",
+    "uri":"https://www.seattlemesh.net/"
+  }
 }
+```
+
+## Regarding continent codes
+
+```
+Asia : AS
+South America: SA
+North America: NA
+Africa: AF
+Europe: EU
+Antarctica: AN
+Oceania: OC
 ```
