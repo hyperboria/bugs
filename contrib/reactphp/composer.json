@@ -1,0 +1,26 @@
+{
+    "name": "wfleurant/reactphp-cjdns",
+    "description": "reactphp cjdns admin api",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "wfleurant",
+            "email": "williamfleurant@comcast.net"
+        }
+    ],
+    "minimum-stability": "dev",
+    "require": {
+        "php": ">=5.3.3",
+        "ext-pdo_sqlite": "*",
+        "phluid/phluid": "master-dev",
+        "react/datagram": "dev-master",
+        "catfan/Medoo": "dev-master",
+        "gabrielelana/byte-units": "^0.3.0",
+        "nesbot/carbon": "^1.20"
+    },
+    "autoload": {
+        "psr-4": {
+            "Cjdns\\": ["src/"]
+        }
+    }
+}
