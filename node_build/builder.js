@@ -132,7 +132,14 @@ var cc = function (gcc, args, callback, content) {
 
 var tmpFile = function (state, name) {
     name = name || '';
-    return state.tempDir + '/jsmake-' + name + Crypto.pseudoRandomBytes(10).toString('hex');
+    try {
+        var randString = Crypto.pseudoRandomBytes(10).toString('hex');
+    } catch(err) {
+        // Sometimes this fails the first time it's run after starting up node.
+        // In that case, we just try again; all subsequent calls succeed
+        var randString = Crypto.pseudoRandomBytes(10).toString('hex');
+    }
+    return state.tempDir + '/jsmake-' + name + randString;
 };
 
 var mkBuilder = function (state) {
